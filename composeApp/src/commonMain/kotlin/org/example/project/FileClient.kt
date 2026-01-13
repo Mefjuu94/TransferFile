@@ -17,17 +17,19 @@ import java.io.File
 class FileClient {
     private val client = HttpClient(CIO) {
         install(HttpTimeout) {
-            requestTimeoutMillis = 24 * 60 * 60 * 1000L
+            requestTimeoutMillis = 24 * 60 * 60 * 1000L // Bardzo długi czas na wielkie pliki
             connectTimeoutMillis = 10000L
             socketTimeoutMillis = 24 * 60 * 60 * 1000L
         }
     }
 
-    suspend fun uploadFile(ip: String, file: File, onProgress: (Float) -> Unit) {
+    // DODALIŚMY PARAMETR port: Int
+    suspend fun uploadFile(ip: String, port: Int, file: File, onProgress: (Float) -> Unit) {
         try {
-            println("Rozpoczynam wysyłanie do: http://$ip:9999/upload")
+            val url = "http://$ip:$port/upload"
+            println("Rozpoczynam wysyłanie do: $url")
 
-            val response: io.ktor.client.statement.HttpResponse = client.post("http://$ip:9999/upload") {
+            val response: io.ktor.client.statement.HttpResponse = client.post(url) {
                 setBody(
                     MultiPartFormDataContent(
                         formData {
@@ -54,6 +56,7 @@ class FileClient {
         } catch (e: Exception) {
             println("BŁĄD Klienta: ${e.message}")
             e.printStackTrace()
+            throw e // Rzucamy błąd dalej, żeby UI (Snackbar) mógł go wyświetlić
         }
     }
 }

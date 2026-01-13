@@ -6,12 +6,21 @@ import java.awt.Frame
 import androidx.compose.runtime.Composable
 
 @Composable
-actual fun openFilePicker(onFileSelected: (File) -> Unit): () -> Unit {
+actual fun openFilePicker(onFilesSelected: (List<File>) -> Unit): () -> Unit {
     return {
-        val fileDialog = FileDialog(null as Frame?, "Wybierz plik", FileDialog.LOAD)
+        // Używamy null jako Frame, co jest dopuszczalne w AWT
+        val fileDialog = FileDialog(null as Frame?, "Wybierz pliki", FileDialog.LOAD)
+
+        // KLUCZ: Włączenie wyboru wielu plików
+        fileDialog.isMultipleMode = true
+
         fileDialog.isVisible = true
-        if (fileDialog.file != null) {
-            onFileSelected(File(fileDialog.directory + fileDialog.file))
+
+        // Pobieramy tablicę wybranych plików (może być pusta)
+        val selectedFiles = fileDialog.files
+
+        if (selectedFiles != null && selectedFiles.isNotEmpty()) {
+            onFilesSelected(selectedFiles.toList())
         }
     }
 }

@@ -10,19 +10,14 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var multicastLock: WifiManager.MulticastLock? = null
-    // USUNIĘTO: private val server = FileServer() -> bo FileServer to teraz object
-    private val discovery = DeviceDiscovery()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Uprawnienia
+        // 1. Uprawnienia (Zostawiamy, bo są niezbędne na Androidzie)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
@@ -31,33 +26,24 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 2. Start Serwera (Używamy nazwy obiektu FileServer)
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
-        lifecycleScope.launch(Dispatchers.IO) {
-            // Wywołujemy bezpośrednio na obiekcie
-            FileServer.start(downloadsDir)
-        }
-
-        // 3. Multicast Lock
+        // 2. Multicast Lock (Zostawiamy, żeby UDP działało przy wygaszonym ekranie)
         val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         multicastLock = wifi.createMulticastLock("FileTransferLock").apply {
             setReferenceCounted(true)
             acquire()
         }
 
-        // 4. Start Discovery
-        discovery.start(Build.MODEL)
-
         setContent {
-            App(discovery = discovery)
+            // WYWOŁANIE BEZ ARGUMENTÓW
+            // App() sama zainicjuje FileServer i Discovery w swoim LaunchedEffect
+            App()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // POPRAWKA: Wywołujemy stop() na obiekcie FileServer
+        // Czyścimy przy zamknięciu
         FileServer.stop()
-        discovery.stop()
         if (multicastLock?.isHeld == true) {
             multicastLock?.release()
         }

@@ -10,24 +10,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
-actual fun openFilePicker(onFileSelected: (File) -> Unit): () -> Unit {
+actual fun openFilePicker(onFilesSelected: (List<File>) -> Unit): () -> Unit {
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
-            val file = copyUriToFile(context, it)
-            if (file != null) onFileSelected(file)
+
+    // ZMIANA: Używamy OpenMultipleDocuments zamiast GetContent
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) {
+            val files = uris.mapNotNull { uri ->
+                copyUriToFile(context, uri)
+            }
+            if (files.isNotEmpty()) onFilesSelected(files)
         }
     }
-    return { launcher.launch("*/*") } // "*/*" pozwala wybrać dowolny plik
+
+    // ZMIANA: Contract OpenMultipleDocuments wymaga tablicy typów MIME
+    return { launcher.launch(arrayOf("*/*")) }
 }
 
 fun copyUriToFile(context: Context, uri: Uri): File? {
     return try {
         val fileName = getFileName(context, uri) ?: "file_${System.currentTimeMillis()}"
         val inputStream = context.contentResolver.openInputStream(uri)
-        val tempFile = File(context.cacheDir, fileName)
 
-        if (tempFile.exists()) tempFile.delete()
+        // Pliki tymczasowe lądują w cache, skąd zostaną wysłane
+        val tempFile = File(context.cacheDir, fileName)
 
         val outputStream = FileOutputStream(tempFile)
         inputStream?.use { input ->
@@ -42,7 +48,6 @@ fun copyUriToFile(context: Context, uri: Uri): File? {
     }
 }
 
-// Funkcja pomocnicza do wyciągania nazwy pliku
 private fun getFileName(context: Context, uri: Uri): String? {
     var name: String? = null
     val cursor = context.contentResolver.query(uri, null, null, null, null)
